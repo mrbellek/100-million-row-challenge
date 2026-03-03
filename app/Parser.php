@@ -4,17 +4,19 @@ namespace App;
 
 final class Parser
 {
-    private const string EOL = "\n";
     private array $output = [];
 
     public function parse(string $inputPath, string $outputPath): void
     {
-        $handle = fopen($inputPath, 'r');
-        while ($line = fgets($handle)) {
-            $matches = [];
-            preg_match('/io(.+),(.+)T/', $line, $matches);
-            $url = $matches[1];
-            $timestamp = $matches[2];
+        $handle = \fopen($inputPath, 'r');
+        //@TODO try doing this with fscanf, might be faster?
+        /*while ($lineParts = fscanf($handle, '%19s%99s,%10sT%14s')) {
+            var_dump($lineParts);
+            die();
+        }*/
+        while ($line = \fgets($handle)) {
+            $url = \substr($line, 19, -27);
+            $timestamp = \substr($line, -26, 10);
 
             if (isset($this->output[$url][$timestamp])) {
                 $this->output[$url][$timestamp]++;
@@ -22,61 +24,19 @@ final class Parser
                 $this->output[$url][$timestamp] = 1;
             }
         }
-        fclose($handle);
+        \fclose($handle);
 
         $this->writeOutput($outputPath);
     }
 
     private function writeOutput(string $outputPath): void
     {
-        // Open file for writing
-        $handle = fopen($outputPath, 'w');
-
-        // Begin url line block
-        fwrite($handle, '{' . self::EOL);
-
-        $j = 0;
-        $urlCount = count($this->output);
         foreach ($this->output as $url => $timestamps) {
-            $this->writeUrl($handle, $url);
-            $this->writeTimestamps($handle, $timestamps);
-
-            // Close timestamps line block
-            if (++$j === $urlCount) {
-                fwrite($handle, '    }' . self::EOL);
-            } else {
-                fwrite($handle, '    },' . self::EOL);
-            }
+            \ksort($timestamps);
+            $this->output[$url] = $timestamps;
         }
 
-        // Close url line block
-        fwrite($handle, '}');
-        fclose($handle);
-    }
-
-    private function writeUrl($handle, string $url): void
-    {
-        // Format url and write
-        fwrite(
-            $handle,
-            '    "' . str_replace('/', '\/', $url) . '": {' . self::EOL
-        );
-    }
-
-    private function writeTimestamps($handle, array $timestamps): void
-    {
-        // Sort timestamps
-        ksort($timestamps);
-        $i = 0;
-        $timestampCount = count($timestamps);
-        foreach ($timestamps as $timestamp => $count) {
-            // Format timestamp lines and write
-            if (++$i === $timestampCount) {
-                $timestampLine = sprintf('        "%s": %d', $timestamp, $count);
-            } else {
-                $timestampLine = sprintf('        "%s": %d,', $timestamp, $count);
-            }
-            fwrite($handle, $timestampLine . self::EOL);
-        }
+        \file_put_contents($outputPath, \json_encode($this->output, JSON_PRETTY_PRINT));
+        unset($this->output);
     }
 }
