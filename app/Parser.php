@@ -23,6 +23,7 @@ final class Parser
 
     public function parse(string $inputPath, string $outputPath): void
     {
+        gc_disable();
         $handle = fopen($inputPath, 'r');
         stream_set_read_buffer($handle, 0);
 
@@ -38,8 +39,7 @@ final class Parser
                 $url = substr($line, 19, -26);
                 $timestamp = substr($line, -25, 10);
 
-                $this->output[$url][$timestamp] ??= 0;
-                $this->output[$url][$timestamp]++;
+                $this->output[$url][$timestamp] = ($this->output[$url][$timestamp] ?? 0) + 1;
             }
             unset($lines);
         }
@@ -56,7 +56,6 @@ final class Parser
         fclose($handle);
 
         $this->writeOutput($outputPath);
-
         printf(
             'Memory usage: %.2fM' . PHP_EOL,
             memory_get_peak_usage() / (1024 * 1024)
